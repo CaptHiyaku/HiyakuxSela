@@ -1,0 +1,199 @@
+
+/* =========================
+   HEADER - THIS ABOUT USS
+========================= */
+
+:root {
+    --header-pink: #d77d98;
+    --header-dark-pink: #a94e70;
+    --header-text: #fff8fa;
+    --header-glass: rgba(255, 245, 249, 0.12);
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 100px;
+}
+
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+
+    padding: 18px 7%;
+    box-sizing: border-box;
+
+    background: rgba(112, 48, 75, 0.18);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    transition:
+        background 0.4s ease,
+        padding 0.4s ease,
+        box-shadow 0.4s ease,
+        transform 0.6s ease,
+        opacity 0.6s ease;
+}
+
+/* Header saat halaman pertama dibuka */
+.main-header.header-hidden {
+    opacity: 0;
+    transform: translateY(-100%);
+}
+
+.main-header.header-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Header ketika halaman di-scroll */
+.main-header.scrolled {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    background: rgba(112, 48, 75, 0.92);
+    box-shadow: 0 8px 30px rgba(65, 20, 39, 0.2);
+}
+
+/* LOGO / JUDUL */
+.logo-icon {
+    flex-shrink: 0;
+}
+
+.nama {
+    position: relative;
+    margin: 0;
+
+    color: var(--header-text);
+    font-family: "Georgia", serif;
+    font-size: clamp(20px, 2.2vw, 29px);
+    font-weight: bold;
+    letter-spacing: 1px;
+
+    cursor: default;
+    transition:
+        color 0.3s ease,
+        transform 0.3s ease;
+}
+
+.nama:hover {
+    color: #ffd5e2;
+    transform: scale(1.04);
+}
+
+/* NAVIGASI */
+.main-header nav ul {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(16px, 2.5vw, 36px);
+
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.main-header nav li {
+    position: relative;
+}
+
+.main-header nav a {
+    position: relative;
+    display: inline-block;
+    padding: 8px 0;
+
+    color: var(--header-text);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-decoration: none;
+
+    transition:
+        color 0.3s ease,
+        transform 0.3s ease;
+}
+
+/* Garis animasi di bawah menu */
+.main-header nav a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+
+    width: 100%;
+    height: 2px;
+    border-radius: 10px;
+
+    background: #ffd0df;
+    transform: scaleX(0);
+    transform-origin: right;
+
+    transition: transform 0.35s ease;
+}
+
+.main-header nav a:hover {
+    color: #ffd5e2;
+    transform: translateY(-2px);
+}
+
+.main-header nav a:hover::after,
+.main-header nav a.active::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* Menu yang sedang aktif */
+.main-header nav a.active {
+    color: #ffd5e2;
+}
+
+/* Tombol menu mobile */
+.menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+
+    width: 42px;
+    height: 42px;
+    padding: 8px;
+
+    background: var(--header-glass);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 21px;
+    height: 2px;
+    border-radius: 5px;
+    background: white;
+
+    transition:
+        transform 0.3s ease,
+        opacity 0.3s ease;
+}
+
+.menu-toggle.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+
+.menu-toggle.open span:nth-child(2) {
+    opacity: 0;
+}
+
+.menu-toggle.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+

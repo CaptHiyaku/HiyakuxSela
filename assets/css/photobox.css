@@ -1,0 +1,303 @@
+
+/* ==================================
+   PHOTO BOX - ROMANTIC GALLERY
+================================== */
+
+.content-section-photobox {
+    --photo-pink: #f000ef;
+    --photo-light: #ffd8f5;
+    --photo-purple: #720078;
+    --photo-dark: #210025;
+
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+
+    padding: 90px 6% 85px;
+    color: #fff5fc;
+
+    background:
+        radial-gradient(
+            ellipse at 15% 25%,
+            rgba(207, 0, 220, 0.23),
+            transparent 48%
+        ),
+        linear-gradient(
+            135deg,
+            #210025 0%,
+            #4b0056 48%,
+            #790078 100%
+        );
+}
+
+.content-section-photobox::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: -140px;
+    right: -120px;
+
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+
+    background: rgba(240, 0, 239, 0.16);
+    filter: blur(100px);
+    pointer-events: none;
+}
+
+.content-section-photobox::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    bottom: -180px;
+    left: -100px;
+
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+
+    background: rgba(240, 0, 239, 0.16);
+    filter: blur(100px);
+    pointer-events: none;
+}
+
+/* HEADING */
+.photobox-heading {
+    margin: 0 auto 45px;
+    padding: 0 15px;
+    text-align: center;
+
+    opacity: 0;
+    transform: translateY(22px);
+
+    transition:
+        opacity 0.7s ease,
+        transform 0.7s ease;
+}
+
+.content-section-photobox.photobox-visible
+.photobox-heading {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.photobox-subtitle {
+    margin: 0 0 12px;
+
+    color: #f5a6f3;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 4px;
+}
+
+.photobox-heading h2 {
+    margin: 0;
+
+    color: #fff5fc;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(38px, 5.5vw, 64px);
+    line-height: 1.15;
+
+    text-shadow: 0 0 28px rgba(240, 0, 239, 0.3);
+}
+
+.photobox-description {
+    margin: 15px 0 0;
+
+    color: #e8c8e9;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+/* GALERI */
+.photobox {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+
+    max-width: 1050px;
+    margin: 0 auto;
+}
+
+/* KARTU FOTO */
+.photobox-item {
+    position: relative;
+    min-width: 0;
+    margin: 0;
+    padding: 13px;
+
+    overflow: hidden;
+
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 220, 255, 0.17);
+    border-radius: 20px;
+
+    box-shadow: 0 15px 35px rgba(15, 0, 20, 0.24);
+
+    opacity: 0;
+    transform: translateY(30px) scale(0.97);
+
+    transition:
+        opacity 0.75s ease,
+        transform 0.75s cubic-bezier(0.2, 0.7, 0.2, 1),
+        border-color 0.3s ease,
+        box-shadow 0.3s ease,
+        background 0.3s ease;
+}
+
+/* Fade in ketika section aktif */
+.content-section-photobox.photobox-visible
+.photobox-item {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* Efek berurutan */
+.content-section-photobox.photobox-visible
+.photobox-item:nth-child(1) {
+    transition-delay: 0.08s;
+}
+
+.content-section-photobox.photobox-visible
+.photobox-item:nth-child(2) {
+    transition-delay: 0.2s;
+}
+
+.content-section-photobox.photobox-visible
+.photobox-item:nth-child(3) {
+    transition-delay: 0.32s;
+}
+
+.content-section-photobox.photobox-visible
+.photobox-item:nth-child(4) {
+    transition-delay: 0.44s;
+}
+
+/* GAMBAR */
+.photobox-img {
+    display: block;
+
+    width: 100%;
+    height: 350px;
+
+    object-fit: cover;
+    object-position: center;
+
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.04);
+
+    cursor: zoom-in;
+
+    transition:
+        transform 0.6s ease,
+        filter 0.4s ease;
+}
+
+/* HOVER FOTO */
+.photobox-item:hover {
+    border-color: rgba(255, 190, 255, 0.55);
+
+    background: rgba(255, 255, 255, 0.11);
+
+    box-shadow:
+        0 20px 45px rgba(15, 0, 20, 0.3),
+        0 0 25px rgba(240, 0, 239, 0.13);
+}
+
+.photobox-item:hover .photobox-img {
+    transform: scale(1.035);
+    filter: brightness(1.06);
+}
+
+.photobox-img:focus-visible {
+    outline: 3px solid #ff9af7;
+    outline-offset: 4px;
+}
+
+/* CAPTION */
+.photobox-item figcaption {
+    padding: 15px 8px 5px;
+
+    color: #ffe0f6;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    text-align: center;
+}
+
+/* LIGHTBOX */
+.photobox-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 35px;
+    box-sizing: border-box;
+
+    background: rgba(17, 0, 22, 0.94);
+    backdrop-filter: blur(12px);
+
+    opacity: 0;
+    visibility: hidden;
+
+    transition:
+        opacity 0.3s ease,
+        visibility 0.3s ease;
+}
+
+.photobox-lightbox.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.photobox-lightbox img {
+    display: block;
+
+    max-width: 92%;
+    max-height: 85vh;
+
+    object-fit: contain;
+    border-radius: 12px;
+
+    box-shadow: 0 0 45px rgba(240, 0, 239, 0.2);
+
+    transform: scale(0.94);
+    transition: transform 0.3s ease;
+}
+
+.photobox-lightbox.open img {
+    transform: scale(1);
+}
+
+.photobox-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+
+    width: 45px;
+    height: 45px;
+
+    color: white;
+    font-size: 30px;
+
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+
+    cursor: pointer;
+}
+
+/* PREFERENSI AKSESIBILITAS */
+@media (prefers-reduced-motion: reduce) {
+    .photobox-heading,
+    .photobox-item,
+    .photobox-img,
+    .photobox-lightbox,
+    .photobox-lightbox img {
+        transition-duration: 0.01ms !important;
+    }
+}
