@@ -1,16 +1,32 @@
-
 document.addEventListener("DOMContentLoaded", () => {
     "use strict";
 
     // ==========================================
-    // 1. KONFIGURASI
+    // 1. KONFIGURASI SUPABASE
     // ==========================================
-    const STORAGE_KEY = "ourRelationshipNotes_v1";
+    const SUPABASE_URL = "https://ssnzkjoheeatoicwauie.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_qPD_Y6Ql5KR805c_gMLUnw_HapdKhYg";
+
     const NOTE_LIFETIME = 24 * 60 * 60 * 1000;
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
     const MAX_IMAGE_SIDE = 1200;
     const IMAGE_QUALITY = 0.78;
     const FADE_DURATION = 400;
+
+    if (
+        !window.supabase ||
+        SUPABASE_URL.startsWith("YOUR_") ||
+        SUPABASE_PUBLISHABLE_KEY.startsWith("YOUR_")
+        
+    ) {
+        console.error("Notes: Konfigurasi Supabase belum diisi.");
+        return;
+    }
+
+    const db = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
 
     // ==========================================
     // 2. MENGAMBIL ELEMEN HTML
@@ -49,36 +65,158 @@ document.addEventListener("DOMContentLoaded", () => {
         !notesEmpty ||
         !notesCount
     ) {
-        console.error(
-            "Notes App: Periksa kembali ID elemen HTML."
-        );
+        console.error("Notes App: Periksa kembali ID elemen HTML.");
         return;
     }
 
     // ==========================================
     // 3. STATE APLIKASI
     // ==========================================
-    let notes = loadNotes();
+    let notes = [];
     let currentPhoto = "";
     let photoChanged = false;
     let isSaving = false;
+    let isLoadingNotes = false;
 
-    // Mencegah animasi penghapusan berjalan berulang.
     const removingNoteIds = new Set();
 
-    renderNotes();
     setupNotesReveal();
+    initializeSharedNotes();
 
-    // Satu interval untuk hitung mundur dan kedaluwarsa.
     window.setInterval(updateExpiryCountdown, 1000);
+    window.setInterval(refreshSharedNotes, 5000);
+
+    async function initializeSharedNotes() {
+        await refreshSharedNotes();
+    }
+
+    function mapDatabaseNote(row) {
+        return {
+            id: String(row.id),
+            sender: row.sender || "Us",
+            title: row.title || "",
+            message: row.message || "",
+            photo: row.photo || "",
+            createdAt: row.created_at,
+            updatedAt: row.updated_at || row.created_at
+        };
+    }
 
     // ==========================================
-    // 4. WAKTU KEDALUWARSA
+    // 4. MEMUAT NOTES DARI DATABASE
+    // ==========================================
+    async function refreshSharedNotes() {
+        if (isLoadingNotes) return;
+
+        isLoadingNotes = true;
+
+        try {
+            const { data, error } = await db
+                .from("relationship_notes")
+                .select(
+                    "id, sender, title, message, photo, created_at, updated_at"
+                )
+                .order("created_at", { ascending: false });
+
+            if (error) throw error;
+
+            const fetchedNotes = (data || [])
+                .map(mapDatabaseNote)
+                .filter(note => !isNoteExpired(note));
+
+            if (
+                JSON.stringify(fetchedNotes) !==
+                JSON.stringify(notes)
+            ) {
+                notes = fetchedNotes;
+                renderNotes();
+            }
+
+            // Hapus catatan kedaluwarsa dari database.
+            const expiredRows = (data || []).filter(row =>
+                isNoteExpired(mapDatabaseNote(row))
+            );
+
+            for (const row of expiredRows) {
+                const { error: deleteError } = await db
+                    .from("relationship_notes")
+                    .delete()
+                    .eq("id", row.id);
+
+                if (deleteError) {
+                    console.error(
+                        "Gagal menghapus catatan kedaluwarsa:",
+                        deleteError.message
+                    );
+                }
+            }
+        } catch (error) {
+            console.error(
+                "Gagal memuat Notes:",
+                error.message || error
+            );
+        } finally {
+            isLoadingNotes = false;
+        }
+    }
+
+    // ==========================================
+    // 5. SIMPAN, UPDATE, DAN HAPUS NOTES
+    // ==========================================
+    async function insertSharedNote(note) {
+        const { error } = await db
+            .from("relationship_notes")
+            .insert({
+                id: note.id,
+                sender: note.sender,
+                title: note.title,
+                message: note.message,
+                photo: note.photo || null,
+                created_at: note.createdAt,
+                updated_at: note.updatedAt
+            });
+
+        if (error) throw error;
+
+        await refreshSharedNotes();
+    }
+
+    async function updateSharedNote(note) {
+        const { error } = await db
+            .from("relationship_notes")
+            .update({
+                sender: note.sender,
+                title: note.title,
+                message: note.message,
+                photo: note.photo || null,
+                updated_at: note.updatedAt
+            })
+            .eq("id", note.id);
+
+        if (error) throw error;
+
+        await refreshSharedNotes();
+    }
+
+    async function deleteSharedNote(id) {
+        const { error } = await db
+            .from("relationship_notes")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
+
+        notes = notes.filter(note => note.id !== id);
+
+        await refreshSharedNotes();
+    }
+
+    // ==========================================
+    // 6. WAKTU KEDALUWARSA
     // ==========================================
     function isNoteExpired(note) {
         const createdAt = new Date(note.createdAt).getTime();
 
-        // Pertahankan catatan lama yang tanggalnya tidak valid.
         if (!Number.isFinite(createdAt)) {
             return false;
         }
@@ -106,14 +244,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return "Catatan kedaluwarsa";
         }
 
-        const hours = Math.floor(
-            remaining / 3600000
-        );
-
+        const hours = Math.floor(remaining / 3600000);
         const minutes = Math.floor(
             (remaining % 3600000) / 60000
         );
-
         const seconds = Math.floor(
             (remaining % 60000) / 1000
         );
@@ -129,12 +263,10 @@ document.addEventListener("DOMContentLoaded", () => {
             note => isNoteExpired(note)
         );
 
-        // Animasi dan hapus catatan yang sudah kedaluwarsa.
         expiredNotes.forEach(note => {
             removeNoteWithAnimation(note.id, false);
         });
 
-        // Perbarui hitung mundur catatan yang masih aktif.
         document.querySelectorAll(
             "[data-note-expiry-id]"
         ).forEach(label => {
@@ -151,74 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 5. LOCAL STORAGE
-    // ==========================================
-    function loadNotes() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            const parsed = saved ? JSON.parse(saved) : [];
-
-            if (!Array.isArray(parsed)) {
-                return [];
-            }
-
-            const validNotes = parsed.filter(note =>
-                note &&
-                typeof note.id === "string" &&
-                typeof note.title === "string" &&
-                typeof note.message === "string"
-            );
-
-            // Hapus catatan kedaluwarsa ketika halaman dibuka.
-            const activeNotes = validNotes.filter(
-                note => !isNoteExpired(note)
-            );
-
-            if (activeNotes.length !== validNotes.length) {
-                localStorage.setItem(
-                    STORAGE_KEY,
-                    JSON.stringify(activeNotes)
-                );
-            }
-
-            return activeNotes;
-        } catch (error) {
-            console.error(
-                "Gagal membaca catatan:",
-                error
-            );
-
-            return [];
-        }
-    }
-
-    function persistNotes(nextNotes) {
-        try {
-            localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify(nextNotes)
-            );
-
-            notes = nextNotes;
-            return true;
-        } catch (error) {
-            console.error(
-                "Gagal menyimpan catatan:",
-                error
-            );
-
-            alert(
-                "Catatan gagal disimpan. " +
-                "Penyimpanan browser mungkin penuh. " +
-                "Coba gunakan foto yang lebih kecil."
-            );
-
-            return false;
-        }
-    }
-
-    // ==========================================
-    // 6. FUNGSI BANTUAN
+    // 7. FUNGSI BANTUAN
     // ==========================================
     function createElement(tag, className, text) {
         const element = document.createElement(tag);
@@ -251,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 7. ANIMASI FADE-IN DAN FADE-OUT
+    // 8. ANIMASI FADE-IN DAN FADE-OUT
     // ==========================================
     function setupNotesReveal() {
         const targets = document.querySelectorAll(
@@ -300,6 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof callback === "function") {
                 callback();
             }
+
             return;
         }
 
@@ -311,6 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof callback === "function") {
                 callback();
             }
+
             return;
         }
 
@@ -320,6 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         function finish() {
             if (completed) return;
+
             completed = true;
 
             noteCard.removeEventListener(
@@ -346,12 +414,11 @@ document.addEventListener("DOMContentLoaded", () => {
             handleAnimationEnd
         );
 
-        // Fallback jika CSS animasi tidak tersedia.
         window.setTimeout(finish, FADE_DURATION + 150);
     }
 
     // ==========================================
-    // 8. MENAMPILKAN CATATAN
+    // 9. MENAMPILKAN CATATAN
     // ==========================================
     function renderNotes() {
         notesList.replaceChildren();
@@ -424,7 +491,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 )
             );
 
-            // Foto hanya ditampilkan jika berupa data URL gambar.
             if (
                 typeof note.photo === "string" &&
                 note.photo.startsWith("data:image/")
@@ -475,12 +541,9 @@ document.addEventListener("DOMContentLoaded", () => {
             actions.append(editButton, deleteButton);
             card.append(actions);
 
-            // Fade-in saat catatan baru ditampilkan.
             card.classList.add("note-enter");
-
             notesList.append(card);
 
-            // Memicu transisi pada frame berikutnya.
             requestAnimationFrame(() => {
                 card.classList.add("note-enter-active");
             });
@@ -488,7 +551,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 9. PREVIEW FOTO
+    // 10. PREVIEW FOTO
     // ==========================================
     function showPhotoPreview(photoData) {
         currentPhoto = photoData;
@@ -522,7 +585,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 10. EDIT CATATAN
+    // 11. EDIT CATATAN
     // ==========================================
     function editNote(id) {
         const note = notes.find(item => item.id === id);
@@ -563,7 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 11. HAPUS CATATAN DENGAN ANIMASI
+    // 12. HAPUS CATATAN DENGAN ANIMASI
     // ==========================================
     function removeNoteWithAnimation(id, askConfirmation) {
         const note = notes.find(item => item.id === id);
@@ -586,23 +649,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const card = [...notesList.querySelectorAll(".note-card")]
             .find(item => item.dataset.noteId === id);
 
-        fadeOutNote(card, () => {
-            const nextNotes = notes.filter(
-                item => item.id !== id
-            );
+        fadeOutNote(card, async () => {
+            try {
+                await deleteSharedNote(id);
 
-            if (persistNotes(nextNotes)) {
                 if (noteIdInput.value === id) {
                     resetForm();
                 }
+            } catch (error) {
+                console.error(
+                    "Gagal menghapus Notes:",
+                    error.message || error
+                );
 
-                renderNotes();
-            } else if (card) {
-                // Catatan tetap disimpan jika localStorage gagal.
-                card.classList.remove("fade-out");
+                alert(
+                    "Catatan gagal dihapus dari database. " +
+                    "Periksa koneksi atau izin Supabase."
+                );
+
+                if (card) {
+                    card.classList.remove("fade-out");
+                }
+            } finally {
+                removingNoteIds.delete(id);
             }
-
-            removingNoteIds.delete(id);
         });
     }
 
@@ -611,7 +681,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 12. MEMBUKA FOTO DALAM LIGHTBOX
+    // 13. MEMBUKA FOTO DALAM LIGHTBOX
     // ==========================================
     function openPhoto(photo, title) {
         const overlay = document.createElement("div");
@@ -666,7 +736,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 13. KOMPRESI FOTO
+    // 14. KOMPRESI FOTO
     // ==========================================
     function compressImage(file) {
         return new Promise((resolve, reject) => {
@@ -708,6 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         reject(
                             new Error("Tidak dapat memproses foto.")
                         );
+
                         return;
                     }
 
@@ -739,7 +810,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 14. EVENT PILIH FOTO
+    // 15. EVENT PILIH FOTO
     // ==========================================
     photoInput.addEventListener("change", async () => {
         const file = photoInput.files?.[0];
@@ -789,9 +860,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     // ==========================================
-    // 15. SIMPAN DAN UPDATE CATATAN
+    // 16. SIMPAN DAN UPDATE CATATAN
     // ==========================================
-    form.addEventListener("submit", event => {
+    form.addEventListener("submit", async event => {
         event.preventDefault();
 
         if (isSaving) return;
@@ -814,9 +885,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? notes.find(item => item.id === id)
                 : null;
 
-            // Jangan mengubah catatan yang sedang dihapus.
-            if (id && (!existingNote || removingNoteIds.has(id))) {
-                alert("Catatan tidak ditemukan atau sedang dihapus.");
+            if (
+                id &&
+                (!existingNote || removingNoteIds.has(id))
+            ) {
+                alert(
+                    "Catatan tidak ditemukan atau sedang dihapus."
+                );
+
                 return;
             }
 
@@ -838,24 +914,32 @@ document.addEventListener("DOMContentLoaded", () => {
                     ? currentPhoto
                     : (existingNote?.photo || ""),
 
-                // Waktu awal tetap sama saat mengedit.
                 createdAt: existingNote?.createdAt || now,
                 updatedAt: now
             };
 
-            const nextNotes = existingNote
-                ? notes.map(item =>
-                    item.id === id ? note : item
-                )
-                : [...notes, note];
-
-            if (persistNotes(nextNotes)) {
-                resetForm();
-                renderNotes();
+            if (existingNote) {
+                await updateSharedNote(note);
+            } else {
+                await insertSharedNote(note);
             }
+
+            resetForm();
+            await refreshSharedNotes();
+        } catch (error) {
+            console.error(
+                "Gagal menyimpan Notes:",
+                error.message || error
+            );
+
+            alert(
+                "Catatan gagal disimpan ke database. " +
+                "Periksa koneksi Supabase dan aturan akses (RLS)."
+            );
         } finally {
             isSaving = false;
             saveButton.disabled = false;
         }
     });
 });
+
